@@ -1,0 +1,130 @@
+---
+title: "Untitled"
+author: "Dorcas"
+date: "Tuesday, July 19, 2016"
+output: html_document
+---
+
+Introduction
+
+It is now possible to collect a large amount of data about personal movement using activity monitoring devices such as a Fitbit, Nike Fuelband, or Jawbone Up. These type of devices are part of the "quantified self" movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. But these data remain under-utilized both because the raw data are hard to obtain and there is a lack of statistical methods and software for processing and interpreting the data.
+
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
+
+LOADING AND PREPROCESSING THE DATA
+
+
+```{r, echo=TRUE}
+#1.  Code for reading in the dataset and/or processing the data
+activity  <- read.csv("C:/Users/User/Documents/Reproducible/Assignment/activity.csv", sep=",", header=TRUE)
+
+head(activity)
+tail(activity)
+str(activity)
+```
+
+Mean total number of steps
+
+```{r, echo=TRUE}
+library(dplyr)
+total.steps.per.day <- activity %>% group_by(date) %>% summarise(total = sum(steps, na.rm = TRUE))
+```
+3.  Mean and median number of steps taken each day
+
+```{r, echo=TRUE}
+mean.total <- mean(total.steps.per.day$total)
+print(mean.total)
+
+median.total <- median(total.steps.per.day$total)
+print(median.total)
+```
+
+2.  Histogram of the total number of steps taken each day
+
+```{r, echo=TRUE}
+hist(total.steps.per.day$total, col="blue", xlab= "Total number of steps", ylab = "Number of days", main="Histogram of the total number of steps taken each day")
+```
+
+4.  Time series plot of the average number of steps taken
+
+```{r, echo=TRUE}
+avgsteps <- activity %>%
+  filter(!is.na(steps)) %>%
+  group_by(interval) %>%
+  summarize(steps = mean(steps)) %>%
+  print
+
+avgsteps <- activity %>% group_by(interval) %>% summarise(avg.interval = mean(steps, na.rm = TRUE))
+print(avgsteps)
+
+#Time series
+library(ggplot2)
+ggplot(avgsteps, aes(x=interval, y=avg.interval))+
+  geom_line(color = "blue")
+```
+5.  The 5-minute interval that, on average, contains the maximum number of steps
+
+```{r, echo=TRUE}
+max(avgsteps$avg.interval)
+```
+6.  Code to describe and show a strategy for imputing missing data
+
+#summary of missing values
+```{r, echo=TRUE}
+sum(is.na(activity$steps))#same as summary
+summary(activity$steps)
+mean(is.na(activity$steps))#% of the missing values
+
+#It is only 13% of the dataset which has missing values but since the question is concerning imputing the data then we have to fill all the missing values with mean for example for interval 5
+```
+
+
+```{r, echo=TRUE}
+
+library(Hmisc)
+mean(activity$steps, na.rm = TRUE)
+## [1] 37.3826
+#This is the mean which will be used to replace the missing values.
+
+activity.imputed <- activity
+activity.imputed$steps <- impute(activity$steps, mean)
+head(activity.imputed)
+```
+
+7.Histogram of the total number of steps taken each day after missing values are imputed
+
+```{r, echo=TRUE}
+
+total.steps.per.day_imputed <- activity.imputed %>% group_by(date) %>% summarise(total = sum(steps, na.rm = TRUE))
+
+hist(total.steps.per.day_imputed$total, col="blue", xlab= "Total number of steps", ylab = "Number of days", main="Histogram of the total number of steps taken each day with imputed data")
+```
+Mean and Median after imputing the data
+
+```{r, echo=TRUE}
+mean.total <- mean(total.steps.per.day_imputed$total)
+print(mean.total)
+
+median.total <- mean(total.steps.per.day_imputed$total)
+print(median.total)
+## [1] 10766.19 (Incidentally mean and median are the same after imputing the data)
+```
+
+8. Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+
+# You need to change the dates to weekdays and weekends
+```{r, echo=TRUE}
+days <- weekdays(as.Date(activity.imputed$date))
+for(i in 1:length(days)) {
+        if(days[i] %in% c("saturday", "sunday")) days[i] = "weekend"
+        else days[i] = "weekday"
+}
+activity.imputed$day <- as.factor(days)
+
+averages <- aggregate(steps ~ interval + days, data=activity.imputed, mean)
+head(averages)
+
+g <- ggplot(averages, aes(interval, steps))
+g + geom_line(color="blue") +
+xlab("Interval") + ylab("Averages steps") + facet_grid(days~.)
+```
